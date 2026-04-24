@@ -805,6 +805,31 @@
                     }} />
                   </label>
                 </div>
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-sm font-black text-slate-800 uppercase">Importar pegando texto</h3>
+                  <p className="text-xs text-slate-500">Pega el texto de datos copiado del sitio anterior.</p>
+                  <textarea id="paste-import" rows="4" placeholder="Pega los datos aca..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:outline-none" style={{userSelect: 'text'}}></textarea>
+                  <button onClick={() => {
+                    try {
+                      const raw = document.getElementById('paste-import').value.trim();
+                      if (!raw) return alert('Pega los datos primero.');
+                      const data = JSON.parse(raw);
+                      if (data.clients && data.entries) {
+                        if (confirm('Esto va a reemplazar todos tus datos actuales. Continuar?')) {
+                          setClients(data.clients);
+                          setEntries(data.entries);
+                          if (data.history) setHistory(data.history);
+                          alert('Datos importados correctamente!');
+                          setCurrentView('dashboard');
+                        }
+                      } else {
+                        alert('El formato no es correcto.');
+                      }
+                    } catch (err) {
+                      alert('Error al leer los datos. Asegurate de pegar todo el texto.');
+                    }
+                  }} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl">IMPORTAR TEXTO</button>
+                </div>
               </main>
             </div>
           )}
