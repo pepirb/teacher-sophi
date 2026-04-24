@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>App Sophia</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Ícono para cuando se agregue a la pantalla de inicio del iPhone -->
+  <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Apple_Notes_icon.svg/1024px-Apple_Notes_icon.svg.png">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Librería para convertir HTML a Imagen -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* Evitar selección de texto y comportamientos extraños en móvil */
+    * { -webkit-tap-highlight-color: transparent; user-select: none; }
+    input { user-select: text; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .receipt-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Estilo para que la imagen de descarga no tenga scroll y salga completa */
+    .downloading .expand-on-download {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 overflow-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // Colores para el sistema de Código de Colores
+    const STUDENT_COLORS = [
+      { bg: 'bg-indigo-500', text: 'text-indigo-600', light: 'bg-indigo-50', border: 'border-indigo-200', hex: '#6366f1' },
+      { bg: 'bg-emerald-500', text: 'text-emerald-600', light: 'bg-emerald-50', border: 'border-emerald-200', hex: '#10b981' },
+      { bg: 'bg-amber-500', text: 'text-amber-600', light: 'bg-amber-50', border: 'border-amber-200', hex: '#f59e0b' },
+      { bg: 'bg-rose-500', text: 'text-rose-600', light: 'bg-rose-50', border: 'border-rose-200', hex: '#f43f5e' },
+      { bg: 'bg-cyan-500', text: 'text-cyan-600', light: 'bg-cyan-50', border: 'border-cyan-200', hex: '#06b6d4' },
+      { bg: 'bg-violet-500', text: 'text-violet-600', light: 'bg-violet-50', border: 'border-violet-200', hex: '#8b5cf6' },
+    ];
+
+    // Generador de Íconos SVG
+    const Icon = ({ name, className }) => {
+      const svgProps = {
+        xmlns: "http://www.w3.org/2000/svg", width: "24", height: "24", viewBox: "0 0 24 24",
+        fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className
+      };
+      switch(name) {
+        case 'Plus': return <svg {...svgProps}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        case 'Calendar': return <svg {...svgProps}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
+        case 'Clock': return <svg {...svgProps}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        case 'CheckCircle2': return <svg {...svgProps}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="m9 12 2 2 4-4"></path></svg>;
+        case 'ChevronLeft': return <svg {...svgProps}><polyline points="15 18 9 12 15 6"></polyline></svg>;
+        case 'Wallet': return <svg {...svgProps}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"></path><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>;
+        case 'Archive': return <svg {...svgProps}><rect x="3" y="4" width="18" height="4" rx="2" ry="2"></rect><path d="M20 8v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8"></path><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+        case 'X': return <svg {...svgProps}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        case 'BookOpen': return <svg {...svgProps}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>;
+        case 'Users': return <svg {...svgProps}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+        case 'FileText': return <svg {...svgProps}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>;
+        case 'Copy': return <svg {...svgProps}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>;
+        case 'CheckSquare': return <svg {...svgProps}><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>;
+        case 'Square': return <svg {...svgProps}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>;
+        case 'Edit2': return <svg {...svgProps}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
+        case 'Trash2': return <svg {...svgProps}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
+        case 'Image': return <svg {...svgProps}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>;
+        case 'Download': return <svg {...svgProps}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
+        case 'History': return <svg {...svgProps}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>;
+        case 'ChevronRight': return <svg {...svgProps}><polyline points="9 18 15 12 9 6"></polyline></svg>;
+        default: return null;
+      }
+    };
+
+    function App() {
+      const DEFAULT_RATE = 150000;
+      const receiptRef = useRef(null);
+
+      // --- ESTADO Y PERSISTENCIA ---
+      const [clients, setClients] = useState(() => {
+        const saved = localStorage.getItem('sophia_clients_v10');
+        return saved ? JSON.parse(saved) : [
+          { id: '1', name: 'Oli' }, { id: '2', name: 'Bauti' },
+          { id: '3', name: 'Guille' }, { id: '4', name: 'Ivi' }
+        ];
+      });
+
+      const [entries, setEntries] = useState(() => {
+        const saved = localStorage.getItem('sophia_entries_v10');
+        return saved ? JSON.parse(saved) : [];
+      });
+
+      const [history, setHistory] = useState(() => {
+        const saved = localStorage.getItem('sophia_history_v10');
+        return saved ? JSON.parse(saved) : [];
+      });
+      
+      useEffect(() => { localStorage.setItem('sophia_clients_v10', JSON.stringify(clients)); }, [clients]);
+      useEffect(() => { localStorage.setItem('sophia_entries_v10', JSON.stringify(entries)); }, [entries]);
+      useEffect(() => { localStorage.setItem('sophia_history_v10', JSON.stringify(history)); }, [history]);
+
+      // --- NAVEGACIÓN Y VISTAS ---
+      const [currentView, setCurrentView] = useState('dashboard');
+      const [editingId, setEditingId] = useState(null);
+      const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+
+      // Mes actual para filtrar (formato "YYYY-MM")
+      const [currentMonth, setCurrentMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      });
+
+      const navigateMonth = (direction) => {
+        const [y, m] = currentMonth.split('-').map(Number);
+        const d = new Date(y, m - 1 + direction, 1);
+        setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      };
+
+      const currentMonthLabel = (() => {
+        const [y, m] = currentMonth.split('-').map(Number);
+        const d = new Date(y, m - 1);
+        return d.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+      })();
+
+      // Entradas filtradas por mes
+      const monthEntries = entries.filter(e => e.date.startsWith(currentMonth));
+      
+      const [newEntry, setNewEntry] = useState({
+        clientId: '', date: new Date().toISOString().split('T')[0],
+        startTime: '16:00', endTime: '17:00', rate: DEFAULT_RATE,
+        guestCount: 0, guestNames: []
+      });
+      
+      const [lastAddedAmount, setLastAddedAmount] = useState(0);
+      const [newClient, setNewClient] = useState({ name: '' });
+      const [selectedReportClients, setSelectedReportClients] = useState([]);
+      const [selectedCloseClients, setSelectedCloseClients] = useState([]);
+      const [reportPreview, setReportPreview] = useState('');
+      const [reportMode, setReportMode] = useState('visual'); 
+      const [copied, setCopied] = useState(false);
+      const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+      // --- CÁLCULOS ---
+      const formatCurrency = (amount) => `Gs. ${amount.toLocaleString('es-ES')}`;
+
+      const calculateDuration = (start, end) => {
+        if (!start || !end) return 0;
+        const [startH, startM] = start.split(':').map(Number);
+        const [endH, endM] = end.split(':').map(Number);
+        let diff = (endH + endM / 60) - (startH + startM / 60);
+        return diff > 0 ? diff : 0;
+      };
+
+      const totalEarned = monthEntries.reduce((sum, entry) => sum + entry.amount, 0);
+
+      const summaryByStudent = clients.reduce((acc, client) => {
+        const clientEntries = monthEntries.filter(e => e.clientId === client.id);
+        if (clientEntries.length > 0) {
+          const totalAmount = clientEntries.reduce((sum, e) => sum + e.amount, 0);
+          const totalTime = clientEntries.reduce((sum, e) => sum + e.duration, 0);
+          acc[client.id] = { id: client.id, clientName: client.name, totalAmount, totalTime, count: clientEntries.length };
+        }
+        return acc;
+      }, {});
+
+      const studentSummaryList = Object.values(summaryByStudent).sort((a, b) => b.totalAmount - a.totalAmount);
+
+      // --- HANDLERS ---
+      const handleSaveEntry = () => {
+        const durationInHours = calculateDuration(newEntry.startTime, newEntry.endTime);
+        const amount = durationInHours * newEntry.rate * (1 + newEntry.guestCount);
+        const entryData = {
+          id: Date.now(), 
+          clientId: newEntry.clientId, 
+          date: newEntry.date,
+          startTime: newEntry.startTime, 
+          endTime: newEntry.endTime, 
+          duration: durationInHours,
+          rate: newEntry.rate,
+          guestCount: newEntry.guestCount, 
+          guestNames: newEntry.guestNames.filter(name => typeof name === 'string' && name.trim() !== '').join(', '), 
+          amount: amount
+        };
+        if (editingId) {
+          setEntries(entries.map(e => e.id === editingId ? entryData : e));
+          setCurrentView('dashboard');
+        } else {
+          setEntries([...entries, entryData]);
+          setLastAddedAmount(amount);
+          setCurrentView('success_summary');
+        }
+        setEditingId(null);
+      };
+
+      const handleEditEntry = (entry) => {
+        setEditingId(entry.id);
+        setNewEntry({
+          clientId: entry.clientId,
+          date: entry.date,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          rate: entry.rate || DEFAULT_RATE,
+          guestCount: entry.guestCount || 0,
+          guestNames: entry.guestNames ? entry.guestNames.split(', ') : []
+        });
+        setCurrentView('add_entry');
+      };
+
+      const handleDeleteEntry = (id) => {
+        setEntries(entries.filter(e => e.id !== id));
+      };
+
+      const handleAddClient = () => {
+        if (newClient.name.trim()) {
+          const newId = Date.now().toString();
+          setClients([...clients, { id: newId, name: newClient.name.trim() }]);
+          setNewEntry({ ...newEntry, clientId: newId });
+          setNewClient({ name: '' });
+          setCurrentView('add_entry');
+        }
+      };
+
+      const handleCloseMonth = () => {
+        if (selectedCloseClients.length === 0) return;
+        const entriesToClose = monthEntries.filter(e => selectedCloseClients.includes(e.clientId));
+        const totalClosedAmount = entriesToClose.reduce((sum, e) => sum + e.amount, 0);
+        const closedNames = clients.filter(c => selectedCloseClients.includes(c.id)).map(c => c.name).join(', ');
+        const historyItem = {
+          id: Date.now(), dateClosed: new Date().toLocaleDateString('es-ES'), timestamp: Date.now(),
+          clientNames: closedNames, totalAmount: totalClosedAmount, entries: entriesToClose
+        };
+        setHistory([historyItem, ...history]);
+        setEntries(entries.filter(e => !entriesToClose.some(ec => ec.id === e.id)));
+        setCurrentView('dashboard');
+        setSelectedCloseClients([]);
+      };
+
+      const resetNewEntry = () => {
+        setEditingId(null);
+        setNewEntry({ clientId: '', date: new Date().toISOString().split('T')[0], startTime: '16:00', endTime: '17:00', rate: DEFAULT_RATE, guestCount: 0, guestNames: [] });
+      };
+
+      const handleGenerateReport = () => {
+        const selectedEntries = monthEntries.filter(e => selectedReportClients.includes(e.clientId));
+        const totalAmount = selectedEntries.reduce((sum, e) => sum + e.amount, 0);
+        const studentNames = clients.filter(c => selectedReportClients.includes(c.id)).map(c => c.name).join(' y ');
+
+        let text = `¡Hola! 👋 Te paso el detalle de las clases particulares de ${studentNames}:\n\n`;
+        text += `💰 *Total a facturar:* ${formatCurrency(totalAmount)}\n\n📅 *Detalle de clases:*\n`;
+
+        selectedReportClients.forEach(clientId => {
+          const client = clients.find(c => c.id === clientId);
+          const clientEntries = [...selectedEntries.filter(e => e.clientId === clientId)].sort((a, b) => a.date.localeCompare(b.date));
+          if(clientEntries.length > 0) {
+            text += `\n🧑‍🎓 *${client.name}:*\n`;
+            clientEntries.forEach(e => {
+              const dateParts = e.date.split('-');
+              const formattedDate = `${dateParts[2]}/${dateParts[1]}`;
+              let extraInfo = e.guestCount > 0 ? ` (+${e.guestCount} invitadas${e.guestNames ? ' - ' + e.guestNames : ''})` : '';
+              text += `• ${formattedDate} | ${e.startTime} a ${e.endTime} (${e.duration.toFixed(1)}h)${extraInfo} -> ${formatCurrency(e.amount)}\n`;
+            });
+          }
+        });
+        text += `\n¡Muchas gracias! ✨`;
+        setReportPreview(text); setCopied(false); setCurrentView('report_preview');
+      };
+
+      const copyToClipboard = () => {
+        const el = document.createElement('textarea');
+        el.value = reportPreview; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+        setCopied(true); setTimeout(() => setCopied(false), 3000);
+      };
+
+      const downloadImage = async () => {
+        if (!receiptRef.current) return;
+        setIsGeneratingImage(true);
+        try {
+          receiptRef.current.classList.add('downloading');
+          const canvas = await html2canvas(receiptRef.current, { backgroundColor: '#f8fafc', scale: 2, useCORS: true, logging: false });
+          receiptRef.current.classList.remove('downloading');
+          const image = canvas.toDataURL("image/png");
+          const link = document.createElement('a');
+          link.href = image; link.download = `Recibo_Sophia_${new Date().toISOString().split('T')[0]}.png`; link.click();
+        } catch (err) {
+          alert("Hubo un error al generar la imagen.");
+        } finally {
+          setIsGeneratingImage(false);
+        }
+      };
+
+      const toggleClientForReport = (id) => {
+        if (selectedReportClients.includes(id)) setSelectedReportClients(selectedReportClients.filter(cId => cId !== id));
+        else setSelectedReportClients([...selectedReportClients, id]);
+      };
+
+      const toggleClientForClose = (id) => {
+        if (selectedCloseClients.includes(id)) setSelectedCloseClients(selectedCloseClients.filter(cId => cId !== id));
+        else setSelectedCloseClients([...selectedCloseClients, id]);
+      };
+
+      // --- COMPONENTES AUXILIARES ---
+      
+      const VisualReportCard = ({ cardRef, entriesToRender, total, selectedIds }) => {
+        const sortedEntries = [...entriesToRender].sort((a,b) => a.date.localeCompare(b.date));
+        const firstEntryDate = sortedEntries.length > 0 ? new Date(sortedEntries[0].date) : new Date();
+        const monthName = firstEntryDate.toLocaleString('es-ES', { month: 'long' });
+        const year = firstEntryDate.getFullYear();
+        
+        // Mapear alumnos a colores
+        const studentColorMap = {};
+        selectedIds.forEach((id, index) => {
+          studentColorMap[id] = STUDENT_COLORS[index % STUDENT_COLORS.length];
+        });
+
+        // Agrupar clases por día
+        const daysMap = {};
+        sortedEntries.forEach(e => {
+          const d = parseInt(e.date.split('-')[2]);
+          if (!daysMap[d]) daysMap[d] = new Set();
+          daysMap[d].add(e.clientId);
+        });
+        
+        return (
+          <div ref={cardRef} className="receipt-card w-full rounded-3xl p-6 shadow-xl border border-slate-200 text-slate-800 space-y-6">
+            <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+              <div>
+                <h3 className="text-indigo-600 font-black text-xl tracking-tight uppercase">Sophia Gosling</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Resumen de Clases</p>
+              </div>
+              <div className="text-right">
+                <p className="text-slate-800 font-bold text-sm uppercase">{monthName} {year}</p>
+                <p className="text-slate-400 text-[10px] uppercase font-bold tracking-tighter">Recibo Multi-Alumno</p>
+              </div>
+            </div>
+
+            {/* Leyenda de Colores */}
+            <div className="flex flex-wrap gap-2 px-1">
+              {selectedIds.map(id => {
+                const client = clients.find(c => c.id === id);
+                const color = studentColorMap[id];
+                return (
+                  <div key={id} className="flex items-center space-x-1.5 bg-white border border-slate-100 px-2 py-1 rounded-lg">
+                    <div className={`w-2 h-2 rounded-full ${color.bg}`}></div>
+                    <span className="text-[10px] font-black text-slate-600 uppercase">{client?.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Calendario Multi-Color */}
+            <div className="bg-white/50 rounded-2xl p-4 border border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 text-center">Días Trabajados</h4>
+              <div className="grid grid-cols-7 gap-1.5">
+                {Array.from({ length: 31 }).map((_, i) => {
+                  const day = i + 1;
+                  const studentsOnDay = Array.from(daysMap[day] || []);
+                  const hasClasses = studentsOnDay.length > 0;
+                  
+                  return (
+                    <div key={day} className={`relative h-10 w-10 flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all ${hasClasses ? 'bg-white shadow-sm border border-slate-100' : 'bg-slate-50/50 text-slate-300'}`}>
+                      <span className={hasClasses ? 'text-slate-800' : ''}>{day}</span>
+                      {/* Puntos de colores para los alumnos */}
+                      <div className="absolute bottom-1.5 flex space-x-0.5">
+                        {studentsOnDay.map(sId => (
+                          <div key={sId} className={`w-1.5 h-1.5 rounded-full ${studentColorMap[sId].bg}`}></div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Detalle con Borde de Color */}
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Desglose Detallado</h4>
+              <div className="expand-on-download max-h-56 overflow-y-auto space-y-2 pr-1">
+                {sortedEntries.map(e => {
+                  const color = studentColorMap[e.clientId];
+                  const client = clients.find(c => c.id === e.clientId);
+                  return (
+                    <div key={e.id} className={`flex justify-between items-center bg-white p-3 rounded-xl border-l-4 ${color.border} shadow-sm`}>
+                      <div className="flex flex-col">
+                        <div className="flex items-center space-x-2">
+                           <span className={`text-[9px] font-black uppercase ${color.text}`}>{client?.name}</span>
+                           <span className="text-[10px] text-slate-300">•</span>
+                           <span className="text-[10px] font-black text-slate-800">{e.date.split('-').reverse().slice(0,2).join('/')}</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase">{e.startTime} a {e.endTime} ({e.duration.toFixed(1)}h) {e.guestCount > 0 ? `+ ${e.guestCount} invit.` : ''}</span>
+                      </div>
+                      <span className="font-bold text-slate-700 text-sm">{formatCurrency(e.amount)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl flex justify-between items-center">
+              <div>
+                <p className="text-[10px] font-bold uppercase opacity-50 tracking-widest">Total acumulado</p>
+                <p className="text-2xl font-black">{formatCurrency(total)}</p>
+              </div>
+              <div className="p-3 bg-white/10 rounded-full">
+                <Icon name="Wallet" className="w-6 h-6 text-indigo-400" />
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // --- VISTAS ---
+      const renderDashboardView = () => (
+        <div className="h-full overflow-y-auto pb-24 animate-fade-in">
+          <header className="bg-indigo-600 text-white p-6 pt-12 rounded-b-[2rem] shadow-lg">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h1 className="text-xl font-medium opacity-90 mb-1">Hola, Sophia 👋</h1>
+                <p className="text-sm opacity-80">Acumulado del mes</p>
+                <h2 className="text-4xl font-bold tracking-tight">{formatCurrency(totalEarned)}</h2>
+              </div>
+              <div className="flex space-x-2">
+                <button onClick={() => setCurrentView('data_manager')} className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-all" title="Exportar/Importar datos">
+                  <Icon name="Archive" className="w-5 h-5" />
+                </button>
+                <button onClick={() => setCurrentView('history')} className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-all">
+                  <Icon name="History" className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            {/* Navegación de mes */}
+            <div className="flex items-center justify-center space-x-4 mb-4 bg-white/10 rounded-xl py-2">
+              <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                <Icon name="ChevronLeft" className="w-5 h-5" />
+              </button>
+              <span className="text-sm font-bold uppercase tracking-wider min-w-[160px] text-center">{currentMonthLabel}</span>
+              <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                <Icon name="ChevronRight" className="w-5 h-5" />
+              </button>
+            </div>
+            {monthEntries.length > 0 && (
+              <button onClick={() => { setSelectedReportClients([]); setCurrentView('select_report'); }} className="mt-2 flex items-center justify-center w-full bg-white/20 hover:bg-white/30 transition-colors py-3 rounded-xl text-sm font-medium">
+                <Icon name="FileText" className="w-4 h-4 mr-2" /> Armar Reporte
+              </button>
+            )}
+          </header>
+          <main className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">Por Alumno</h3>
+              {monthEntries.length > 0 && (
+                <button onClick={() => { setSelectedCloseClients([]); setCurrentView('close_month'); }} className="text-sm text-indigo-600 font-medium flex items-center bg-indigo-50 px-3 py-1.5 rounded-full shadow-sm">
+                  <Icon name="Archive" className="w-4 h-4 mr-1" /> Cerrar Mes
+                </button>
+              )}
+            </div>
+            {studentSummaryList.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                <Icon name="BookOpen" className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium text-sm">No hay clases este mes</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {studentSummaryList.map((student) => (
+                  <div key={student.clientName} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-lg">{student.clientName}</h4>
+                      <p className="text-sm text-slate-500">{student.count} clases • {student.totalTime.toFixed(1)} hrs</p>
+                    </div>
+                    <div className="text-right"><p className="font-bold text-indigo-600">{formatCurrency(student.totalAmount)}</p></div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {monthEntries.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 text-center">Clases del mes</h3>
+                <div className="space-y-3">
+                  {[...monthEntries].sort((a, b) => b.date.localeCompare(a.date)).map(entry => {
+                    const client = clients.find(c => c.id === entry.clientId);
+                    return (
+                      <div key={entry.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-slate-800">{client?.name}</span>
+                            {entry.guestCount > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">+{entry.guestCount}</span>}
+                          </div>
+                          <span className="font-semibold text-slate-700">{formatCurrency(entry.amount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center text-[10px] text-slate-500 space-x-3">
+                            <span className="flex items-center"><Icon name="Calendar" className="w-3 h-3 mr-1"/> {entry.date}</span>
+                            <span className="flex items-center"><Icon name="Clock" className="w-3 h-3 mr-1"/> {entry.startTime} - {entry.endTime}</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button onClick={() => handleEditEntry(entry)} className="p-2 text-indigo-600 bg-indigo-50 rounded-lg"><Icon name="Edit2" className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => handleDeleteEntry(entry.id)} className="p-2 text-red-600 bg-red-50 rounded-lg"><Icon name="Trash2" className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </main>
+          <button onClick={() => { resetNewEntry(); setCurrentView('add_entry'); }} className="fixed bottom-6 right-6 bg-indigo-600 text-white w-16 h-16 rounded-full shadow-xl flex items-center justify-center z-10 active:scale-95 transition-all"><Icon name="Plus" className="w-8 h-8" /></button>
+        </div>
+      );
+
+      // (renderHistoryView, renderHistoryDetailView, renderCloseMonthView, renderAddEntryView, renderSelectReportView se mantienen similares)
+      const renderHistoryView = () => (
+        <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+          <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+            <button onClick={() => setCurrentView('dashboard')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+            <h2 className="text-lg font-semibold ml-2 text-slate-800">Historial de Cierres</h2>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6">
+            {history.length === 0 ? (
+              <div className="text-center py-20 text-slate-400">
+                <Icon name="Archive" className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                <p>No hay cierres archivados.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {history.map(item => (
+                  <div key={item.id} onClick={() => { setSelectedHistoryItem(item); setCurrentView('history_detail'); }} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex justify-between items-center active:scale-95 transition-all cursor-pointer">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">{item.dateClosed}</p>
+                        <p className="font-black text-slate-800">{formatCurrency(item.totalAmount)}</p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-500 line-clamp-1">Facturado a: {item.clientNames}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{item.entries.length} clases</p>
+                    </div>
+                    <Icon name="ChevronRight" className="w-5 h-5 text-slate-300 ml-4" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+
+      const renderHistoryDetailView = () => (
+        <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+          <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+            <button onClick={() => setCurrentView('history')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+            <h2 className="text-lg font-semibold ml-2 text-slate-800">Detalle</h2>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="receipt-card rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cierre</p><p className="font-bold text-slate-800">{selectedHistoryItem.dateClosed}</p></div>
+                <div className="text-right"><p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Monto Total</p><p className="font-black text-indigo-600">{formatCurrency(selectedHistoryItem.totalAmount)}</p></div>
+              </div>
+              <div className="space-y-3">
+                {selectedHistoryItem.entries.map(e => (
+                  <div key={e.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-50 text-[11px]">
+                    <div className="flex flex-col"><span className="font-black text-slate-800">{e.date} • {e.startTime} - {e.endTime}</span><span className="text-slate-400 font-bold uppercase">{clients.find(c => c.id === e.clientId)?.name || 'Borrado'} • {e.duration.toFixed(1)}h</span></div>
+                    <span className="font-bold text-slate-700">{formatCurrency(e.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => { setHistory(history.filter(h => h.id !== selectedHistoryItem.id)); setCurrentView('history'); }} className="w-full py-4 text-red-600 font-black text-xs uppercase bg-red-50 rounded-2xl flex items-center justify-center">Borrar este cierre</button>
+          </main>
+        </div>
+      );
+
+      const renderCloseMonthView = () => {
+        const clientsWithEntries = Object.values(summaryByStudent);
+        return (
+          <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+            <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+              <button onClick={() => setCurrentView('dashboard')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+              <h2 className="text-lg font-semibold ml-2 text-slate-800">Cerrar Mes</h2>
+            </header>
+            <main className="flex-1 overflow-y-auto p-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 mb-6 text-center shadow-sm">
+                <Icon name="Archive" className="w-12 h-12 text-indigo-100 mx-auto mb-4" />
+                <h3 className="text-lg font-black text-slate-800 leading-tight uppercase">¿Qué alumnos ya pagaron?</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase mt-2">Selecciona para archivar sus clases en el historial y limpiar el panel.</p>
+              </div>
+              <div className="space-y-3">
+                {clientsWithEntries.map(student => {
+                  const isSelected = selectedCloseClients.includes(student.id);
+                  return (
+                    <div key={student.id} onClick={() => toggleClientForClose(student.id)} className={`flex items-center p-4 rounded-2xl border transition-all cursor-pointer ${isSelected ? 'bg-indigo-50 border-indigo-200 scale-[1.02]' : 'bg-white border-slate-200 opacity-60'}`}>
+                      <div className="mr-4 text-indigo-600">{isSelected ? <Icon name="CheckSquare" className="w-6 h-6" /> : <Icon name="Square" className="w-6 h-6 text-slate-300" />}</div>
+                      <div className="flex-1">
+                        <span className={`text-lg font-black ${isSelected ? 'text-indigo-800' : 'text-slate-700'}`}>{student.clientName}</span>
+                        <p className={`text-[10px] font-bold uppercase ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>{formatCurrency(student.totalAmount)}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </main>
+            <div className="bg-white p-6 border-t border-slate-100 shrink-0">
+              <button disabled={selectedCloseClients.length === 0} onClick={handleCloseMonth} className="w-full bg-slate-800 disabled:bg-slate-200 text-white font-black py-4 rounded-2xl text-lg shadow-lg active:scale-95 transition-all">CERRAR Y ARCHIVAR</button>
+            </div>
+          </div>
+        );
+      };
+
+      const renderAddEntryView = () => {
+        const currentDuration = calculateDuration(newEntry.startTime, newEntry.endTime);
+        const currentAmount = currentDuration * newEntry.rate * (1 + newEntry.guestCount);
+        return (
+          <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+            <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+              <button onClick={() => setCurrentView('dashboard')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+              <h2 className="text-lg font-semibold ml-2 text-slate-800">{editingId ? 'Editar' : 'Nueva Clase'}</h2>
+            </header>
+            <main className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section>
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Alumno</h3>
+                <div className="flex flex-wrap gap-2">
+                  {clients.map(client => (
+                    <button key={client.id} onClick={() => setNewEntry({ ...newEntry, clientId: client.id })} className={`px-5 py-3 rounded-full font-medium transition-all ${newEntry.clientId === client.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'}`}>{client.name}</button>
+                  ))}
+                  <button onClick={() => setCurrentView('add_client')} className="px-5 py-3 rounded-full font-medium bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center"><Icon name="Plus" className="w-4 h-4 mr-1" /> Nuevo</button>
+                </div>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">Gs. por hora</h3>
+                <input type="number" inputMode="numeric" value={newEntry.rate} onChange={(e) => setNewEntry({ ...newEntry, rate: Number(e.target.value) })} className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-6 text-slate-800 font-black text-xl focus:outline-none" />
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 px-1">Fecha y Horario</h3>
+                <div className="space-y-3">
+                  <div className="relative"><Icon name="Calendar" className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" /><input type="date" value={newEntry.date} onChange={(e) => setNewEntry({ ...newEntry, date: e.target.value })} className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-800 font-medium focus:outline-none" /></div>
+                  <div className="flex items-center space-x-4"><div className="flex-1 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm"><label className="block text-[10px] text-slate-400 font-black uppercase mb-1">Inicio</label><input type="time" value={newEntry.startTime} onChange={(e) => setNewEntry({...newEntry, startTime: e.target.value})} className="w-full bg-transparent text-xl font-black text-slate-800 focus:outline-none" /></div><div className="flex-1 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm"><label className="block text-[10px] text-slate-400 font-black uppercase mb-1">Fin</label><input type="time" value={newEntry.endTime} onChange={(e) => setNewEntry({...newEntry, endTime: e.target.value})} className="w-full bg-transparent text-xl font-black text-slate-800 focus:outline-none" /></div></div>
+                </div>
+              </section>
+              <section>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Invitadas</h3>
+                  <div className="flex items-center bg-white border border-slate-200 rounded-full overflow-hidden shadow-sm"><button onClick={() => { const newCount = Math.max(0, newEntry.guestCount - 1); setNewEntry({ ...newEntry, guestCount: newCount, guestNames: newEntry.guestNames.slice(0, newCount) }); }} className="px-4 py-2 text-slate-600 bg-slate-50 font-bold">-</button><span className="w-8 text-center font-bold text-slate-800">{newEntry.guestCount}</span><button onClick={() => setNewEntry({ ...newEntry, guestCount: newEntry.guestCount + 1, guestNames: [...newEntry.guestNames, ''] })} className="px-4 py-2 text-indigo-600 bg-indigo-50 font-bold">+</button></div>
+                </div>
+                {newEntry.guestCount > 0 && (<div className="animate-fade-in space-y-2">{Array.from({ length: newEntry.guestCount }).map((_, index) => (<input key={index} type="text" placeholder={`Nombre invitada ${index + 1}`} value={newEntry.guestNames[index] || ''} onChange={(e) => { const updatedNames = [...newEntry.guestNames]; updatedNames[index] = e.target.value; setNewEntry({...newEntry, guestNames: updatedNames}); }} className="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 text-sm focus:outline-none" />))}</div>)}
+              </section>
+            </main>
+            <div className="bg-white p-6 border-t border-slate-100 shrink-0"><div className="flex justify-between items-center mb-4"><span className="text-slate-500 font-bold text-sm uppercase">Total sesión:</span><span className="text-2xl font-black text-indigo-600">{formatCurrency(currentAmount)}</span></div><button disabled={!newEntry.clientId || currentDuration <= 0} onClick={handleSaveEntry} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-lg shadow-lg">GUARDAR CLASE</button></div>
+          </div>
+        );
+      };
+
+      const renderSelectReportView = () => {
+        const clientsWithEntries = clients.filter(c => monthEntries.some(e => e.clientId === c.id));
+        return (
+          <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+            <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+              <button onClick={() => setCurrentView('dashboard')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+              <h2 className="text-lg font-semibold ml-2 text-slate-800">Reporte</h2>
+            </header>
+            <main className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 px-1">¿A quiénes incluimos?</h3>
+              <div className="space-y-3">
+                {clientsWithEntries.map(client => {
+                  const isSelected = selectedReportClients.includes(client.id);
+                  return (
+                    <div key={client.id} onClick={() => toggleClientForReport(client.id)} className={`flex items-center p-4 rounded-2xl border transition-all cursor-pointer ${isSelected ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 opacity-60'}`}>
+                      <div className="mr-4 text-indigo-600">{isSelected ? <Icon name="CheckSquare" className="w-6 h-6" /> : <Icon name="Square" className="w-6 h-6 text-slate-300" />}</div>
+                      <span className={`text-lg font-black ${isSelected ? 'text-indigo-800' : 'text-slate-700'}`}>{client.name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </main>
+            <div className="bg-white p-6 border-t border-slate-100 shrink-0">
+              <button disabled={selectedReportClients.length === 0} onClick={handleGenerateReport} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-lg shadow-lg">VER REPORTE</button>
+            </div>
+          </div>
+        );
+      };
+
+      const renderReportPreviewView = () => (
+        <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+          <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+            <button onClick={() => setCurrentView('select_report')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+            <h2 className="text-lg font-semibold ml-2 text-slate-800">Vista Previa</h2>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6 flex flex-col space-y-4">
+            <div className="bg-slate-200/50 p-1 rounded-2xl flex shrink-0">
+              <button onClick={() => setReportMode('visual')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${reportMode === 'visual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Visual</button>
+              <button onClick={() => setReportMode('text')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${reportMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Texto</button>
+            </div>
+            {reportMode === 'visual' ? (
+              <div className="animate-fade-in scale-95 origin-top">
+                <VisualReportCard 
+                  cardRef={receiptRef} 
+                  entriesToRender={monthEntries.filter(e => selectedReportClients.includes(e.clientId))}
+                  total={monthEntries.filter(e => selectedReportClients.includes(e.clientId)).reduce((sum, e) => sum + e.amount, 0)} 
+                  selectedIds={selectedReportClients} 
+                />
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex-1 overflow-y-auto whitespace-pre-wrap text-xs text-slate-700 font-bold leading-relaxed animate-fade-in">{reportPreview}</div>
+            )}
+          </main>
+          <div className="bg-white p-6 border-t border-slate-100 shrink-0 space-y-3">
+            {reportMode === 'visual' ? (
+              <button onClick={downloadImage} disabled={isGeneratingImage} className={`w-full flex justify-center items-center font-black py-4 rounded-2xl text-lg shadow-lg transition-all ${isGeneratingImage ? 'bg-slate-300' : 'bg-indigo-600 text-white'}`}>{isGeneratingImage ? "Generando..." : "DESCARGAR IMAGEN"}</button>
+            ) : (
+              <button onClick={copyToClipboard} className={`w-full flex justify-center items-center font-black py-4 rounded-2xl text-lg shadow-lg transition-all ${copied ? 'bg-green-500 text-white' : 'bg-indigo-600 text-white'}`}>{copied ? "¡COPIADO!" : "COPIAR TEXTO"}</button>
+            )}
+            <button onClick={() => setCurrentView('dashboard')} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl text-sm uppercase tracking-widest">Cerrar</button>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="font-sans text-slate-900 antialiased max-w-md mx-auto h-[100dvh] bg-slate-50 overflow-hidden relative shadow-2xl flex flex-col">
+          {currentView === 'dashboard' && renderDashboardView()}
+          {currentView === 'add_entry' && renderAddEntryView()}
+          {currentView === 'add_client' && (
+            <div className="h-full bg-slate-50 flex flex-col p-6 pt-12 animate-fade-in">
+              <div className="flex justify-between items-center mb-8 shrink-0">
+                <h2 className="text-2xl font-bold text-slate-800">Nuevo Alumno</h2>
+                <button onClick={() => setCurrentView('add_entry')} className="p-2 bg-slate-200 rounded-full text-slate-600"><Icon name="X" className="w-5 h-5" /></button>
+              </div>
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Nombre del alumno</label>
+                  <input type="text" autoFocus value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} placeholder="Ej: Martina" className="w-full text-2xl font-black border-b-2 border-indigo-100 py-3 focus:outline-none bg-transparent" />
+                </div>
+                <button onClick={handleAddClient} disabled={!newClient.name.trim()} className="w-full mt-8 bg-slate-800 disabled:bg-slate-300 text-white font-black py-4 rounded-2xl text-lg shadow-lg uppercase">Agregar</button>
+              </div>
+            </div>
+          )}
+          {currentView === 'select_report' && renderSelectReportView()}
+          {currentView === 'report_preview' && renderReportPreviewView()}
+          {currentView === 'success_summary' && (
+             <div className="h-full bg-indigo-600 flex flex-col items-center justify-center p-6 text-white animate-fade-in">
+                <div className="bg-white/10 p-6 rounded-full mb-6"><Icon name="CheckCircle2" className="w-20 h-20 text-green-300" /></div>
+                <h2 className="text-3xl font-black mb-2 text-center leading-tight uppercase tracking-tighter">¡LISTO!</h2>
+                <div className="bg-white text-slate-800 p-8 rounded-3xl w-full max-sm shadow-2xl text-center">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">A cobrar por hoy</p>
+                  <p className="text-4xl font-black text-indigo-600 mb-6">{formatCurrency(lastAddedAmount)}</p>
+                  <button onClick={() => setCurrentView('dashboard')} className="w-full bg-slate-100 text-slate-800 font-black py-4 rounded-2xl text-lg hover:bg-slate-200">ENTENDIDO</button>
+                </div>
+              </div>
+          )}
+          {currentView === 'close_month' && renderCloseMonthView()}
+          {currentView === 'history' && renderHistoryView()}
+          {currentView === 'history_detail' && renderHistoryDetailView()}
+          {currentView === 'data_manager' && (
+            <div className="h-full bg-slate-50 flex flex-col animate-fade-in">
+              <header className="bg-white p-4 flex items-center border-b border-slate-100 shrink-0">
+                <button onClick={() => setCurrentView('dashboard')} className="p-2 -ml-2 text-slate-500"><Icon name="ChevronLeft" className="w-6 h-6" /></button>
+                <h2 className="text-lg font-semibold ml-2 text-slate-800">Datos</h2>
+              </header>
+              <main className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-sm font-black text-slate-800 uppercase">Exportar datos</h3>
+                  <p className="text-xs text-slate-500">Descarga todos tus datos (alumnos, clases e historial) en un archivo. Util para hacer backup o migrar a otro dispositivo.</p>
+                  <button onClick={() => {
+                    const data = { clients, entries, history, exportDate: new Date().toISOString() };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `sophia_backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
+                    URL.revokeObjectURL(url);
+                  }} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl">EXPORTAR TODO</button>
+                </div>
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-sm font-black text-slate-800 uppercase">Importar datos</h3>
+                  <p className="text-xs text-slate-500">Carga un archivo de backup para restaurar tus datos. Esto reemplaza todos los datos actuales.</p>
+                  <label className="block w-full bg-slate-800 text-white font-bold py-3 rounded-xl text-center cursor-pointer">
+                    IMPORTAR ARCHIVO
+                    <input type="file" accept=".json" className="hidden" onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        try {
+                          const data = JSON.parse(ev.target.result);
+                          if (data.clients && data.entries) {
+                            if (confirm('Esto va a reemplazar todos tus datos actuales. Continuar?')) {
+                              setClients(data.clients);
+                              setEntries(data.entries);
+                              if (data.history) setHistory(data.history);
+                              alert('Datos importados correctamente!');
+                              setCurrentView('dashboard');
+                            }
+                          } else {
+                            alert('El archivo no tiene el formato correcto.');
+                          }
+                        } catch (err) {
+                          alert('Error al leer el archivo.');
+                        }
+                      };
+                      reader.readAsText(file);
+                      e.target.value = '';
+                    }} />
+                  </label>
+                </div>
+              </main>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
