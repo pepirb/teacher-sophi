@@ -86,18 +86,78 @@
       const DEFAULT_RATE = 150000;
       const receiptRef = useRef(null);
 
+      // --- DATOS INICIALES (migrados del sitio anterior) ---
+      const SEED_CLIENTS = [
+        { id: '1', name: 'Oli' }, { id: '2', name: 'Bauti' },
+        { id: '3', name: 'Guille' }, { id: '4', name: 'Ivi' },
+        { id: '5', name: 'Alex' }
+      ];
+
+      const SEED_ENTRIES = [
+        // Oli - febrero
+        { id: 1001, clientId: '1', date: '2026-02-10', startTime: '16:00', endTime: '17:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 1002, clientId: '1', date: '2026-02-12', startTime: '16:30', endTime: '17:45', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
+        { id: 1003, clientId: '1', date: '2026-02-16', startTime: '16:45', endTime: '18:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
+        { id: 1004, clientId: '1', date: '2026-02-17', startTime: '16:00', endTime: '17:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 1005, clientId: '1', date: '2026-02-24', startTime: '20:00', endTime: '21:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 1006, clientId: '1', date: '2026-02-26', startTime: '15:40', endTime: '17:00', duration: 1.333, rate: 150000, guestCount: 1, guestNames: 'Guada', amount: 400000 },
+        // Oli - marzo
+        { id: 1007, clientId: '1', date: '2026-03-04', startTime: '17:00', endTime: '18:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        { id: 1008, clientId: '1', date: '2026-03-06', startTime: '15:30', endTime: '17:30', duration: 2.0, rate: 150000, guestCount: 0, guestNames: '', amount: 300000 },
+        { id: 1009, clientId: '1', date: '2026-03-07', startTime: '10:30', endTime: '11:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 1010, clientId: '1', date: '2026-03-09', startTime: '17:00', endTime: '18:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 1011, clientId: '1', date: '2026-03-10', startTime: '18:00', endTime: '19:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        { id: 1012, clientId: '1', date: '2026-03-11', startTime: '18:00', endTime: '19:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        { id: 1013, clientId: '1', date: '2026-03-14', startTime: '16:00', endTime: '17:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        { id: 1014, clientId: '1', date: '2026-03-16', startTime: '17:00', endTime: '20:00', duration: 3.0, rate: 150000, guestCount: 1, guestNames: 'Oli serrati', amount: 900000 },
+        { id: 1015, clientId: '1', date: '2026-03-17', startTime: '18:45', endTime: '20:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
+        { id: 1016, clientId: '1', date: '2026-03-23', startTime: '17:30', endTime: '19:00', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        { id: 1017, clientId: '1', date: '2026-03-24', startTime: '18:30', endTime: '20:00', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        // Oli - abril
+        { id: 1018, clientId: '1', date: '2026-04-06', startTime: '17:00', endTime: '18:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
+        // Bauti - febrero
+        { id: 2001, clientId: '2', date: '2026-02-17', startTime: '17:30', endTime: '18:00', duration: 0.5, rate: 150000, guestCount: 0, guestNames: '', amount: 75000 },
+        // Bauti - marzo
+        { id: 2002, clientId: '2', date: '2026-03-10', startTime: '16:45', endTime: '18:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
+        { id: 2003, clientId: '2', date: '2026-03-17', startTime: '16:45', endTime: '17:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 2004, clientId: '2', date: '2026-03-19', startTime: '16:30', endTime: '17:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 2005, clientId: '2', date: '2026-03-24', startTime: '17:00', endTime: '17:30', duration: 0.5, rate: 150000, guestCount: 1, guestNames: 'Felipe Achon', amount: 150000 },
+        // Guille - febrero
+        { id: 3001, clientId: '3', date: '2026-02-12', startTime: '17:45', endTime: '18:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        // Guille - marzo
+        { id: 3002, clientId: '3', date: '2026-03-05', startTime: '16:45', endTime: '17:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 3003, clientId: '3', date: '2026-03-17', startTime: '17:45', endTime: '18:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        { id: 3004, clientId: '3', date: '2026-03-19', startTime: '18:00', endTime: '18:45', duration: 0.75, rate: 150000, guestCount: 0, guestNames: '', amount: 112500 },
+        { id: 3005, clientId: '3', date: '2026-03-24', startTime: '17:30', endTime: '18:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
+        // Ivi - febrero
+        { id: 4001, clientId: '4', date: '2026-02-17', startTime: '18:00', endTime: '20:00', duration: 2.0, rate: 180000, guestCount: 0, guestNames: '', amount: 360000 },
+        // Ivi - marzo
+        { id: 4002, clientId: '4', date: '2026-03-05', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 4003, clientId: '4', date: '2026-03-25', startTime: '15:40', endTime: '16:40', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 4004, clientId: '4', date: '2026-03-26', startTime: '15:40', endTime: '16:40', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        // Ivi - abril
+        { id: 4005, clientId: '4', date: '2026-04-08', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        // Alex - marzo
+        { id: 5001, clientId: '5', date: '2026-03-03', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5002, clientId: '5', date: '2026-03-07', startTime: '10:30', endTime: '11:30', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5003, clientId: '5', date: '2026-03-11', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5004, clientId: '5', date: '2026-03-17', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5005, clientId: '5', date: '2026-03-18', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5006, clientId: '5', date: '2026-03-19', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5007, clientId: '5', date: '2026-03-24', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5008, clientId: '5', date: '2026-03-25', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+        { id: 5009, clientId: '5', date: '2026-03-26', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
+      ];
+
       // --- ESTADO Y PERSISTENCIA ---
       const [clients, setClients] = useState(() => {
         const saved = localStorage.getItem('sophia_clients_v10');
-        return saved ? JSON.parse(saved) : [
-          { id: '1', name: 'Oli' }, { id: '2', name: 'Bauti' },
-          { id: '3', name: 'Guille' }, { id: '4', name: 'Ivi' }
-        ];
+        return saved ? JSON.parse(saved) : SEED_CLIENTS;
       });
 
       const [entries, setEntries] = useState(() => {
         const saved = localStorage.getItem('sophia_entries_v10');
-        return saved ? JSON.parse(saved) : [];
+        return saved ? JSON.parse(saved) : SEED_ENTRIES;
       });
 
       const [history, setHistory] = useState(() => {
