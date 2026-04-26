@@ -15,6 +15,8 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <!-- Librería para convertir HTML a Imagen -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
   <style>
     /* Evitar selección de texto y comportamientos extraños en móvil */
@@ -86,88 +88,58 @@
       const DEFAULT_RATE = 150000;
       const receiptRef = useRef(null);
 
-      // --- DATOS INICIALES (migrados del sitio anterior) ---
-      const SEED_CLIENTS = [
-        { id: '1', name: 'Oli' }, { id: '2', name: 'Bauti' },
-        { id: '3', name: 'Guille' }, { id: '4', name: 'Ivi' },
-        { id: '5', name: 'Alex' }
-      ];
+      // --- SUPABASE ---
+      const SUPABASE_URL = 'https://dgriyddsqyfmrdtkldsu.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRncml5ZGRzcXlmbXJkdGtsZHN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMjQwMjEsImV4cCI6MjA5MjcwMDAyMX0.luWtgR7QIZA0gbcW_UhpGLu6FI6BYMCzDkDr_zQg3kU';
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      const SEED_ENTRIES = [
-        // Oli - febrero
-        { id: 1001, clientId: '1', date: '2026-02-10', startTime: '16:00', endTime: '17:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 1002, clientId: '1', date: '2026-02-12', startTime: '16:30', endTime: '17:45', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
-        { id: 1003, clientId: '1', date: '2026-02-16', startTime: '16:45', endTime: '18:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
-        { id: 1004, clientId: '1', date: '2026-02-17', startTime: '16:00', endTime: '17:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 1005, clientId: '1', date: '2026-02-24', startTime: '20:00', endTime: '21:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 1006, clientId: '1', date: '2026-02-26', startTime: '15:40', endTime: '17:00', duration: 1.333, rate: 150000, guestCount: 1, guestNames: 'Guada', amount: 400000 },
-        // Oli - marzo
-        { id: 1007, clientId: '1', date: '2026-03-04', startTime: '17:00', endTime: '18:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        { id: 1008, clientId: '1', date: '2026-03-06', startTime: '15:30', endTime: '17:30', duration: 2.0, rate: 150000, guestCount: 0, guestNames: '', amount: 300000 },
-        { id: 1009, clientId: '1', date: '2026-03-07', startTime: '10:30', endTime: '11:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 1010, clientId: '1', date: '2026-03-09', startTime: '17:00', endTime: '18:00', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 1011, clientId: '1', date: '2026-03-10', startTime: '18:00', endTime: '19:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        { id: 1012, clientId: '1', date: '2026-03-11', startTime: '18:00', endTime: '19:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        { id: 1013, clientId: '1', date: '2026-03-14', startTime: '16:00', endTime: '17:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        { id: 1014, clientId: '1', date: '2026-03-16', startTime: '17:00', endTime: '20:00', duration: 3.0, rate: 150000, guestCount: 1, guestNames: 'Oli serrati', amount: 900000 },
-        { id: 1015, clientId: '1', date: '2026-03-17', startTime: '18:45', endTime: '20:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
-        { id: 1016, clientId: '1', date: '2026-03-23', startTime: '17:30', endTime: '19:00', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        { id: 1017, clientId: '1', date: '2026-03-24', startTime: '18:30', endTime: '20:00', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        // Oli - abril
-        { id: 1018, clientId: '1', date: '2026-04-06', startTime: '17:00', endTime: '18:30', duration: 1.5, rate: 150000, guestCount: 0, guestNames: '', amount: 225000 },
-        // Bauti - febrero
-        { id: 2001, clientId: '2', date: '2026-02-17', startTime: '17:30', endTime: '18:00', duration: 0.5, rate: 150000, guestCount: 0, guestNames: '', amount: 75000 },
-        // Bauti - marzo
-        { id: 2002, clientId: '2', date: '2026-03-10', startTime: '16:45', endTime: '18:00', duration: 1.25, rate: 150000, guestCount: 0, guestNames: '', amount: 187500 },
-        { id: 2003, clientId: '2', date: '2026-03-17', startTime: '16:45', endTime: '17:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 2004, clientId: '2', date: '2026-03-19', startTime: '16:30', endTime: '17:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 2005, clientId: '2', date: '2026-03-24', startTime: '17:00', endTime: '17:30', duration: 0.5, rate: 150000, guestCount: 1, guestNames: 'Felipe Achon', amount: 150000 },
-        // Guille - febrero
-        { id: 3001, clientId: '3', date: '2026-02-12', startTime: '17:45', endTime: '18:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        // Guille - marzo
-        { id: 3002, clientId: '3', date: '2026-03-05', startTime: '16:45', endTime: '17:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 3003, clientId: '3', date: '2026-03-17', startTime: '17:45', endTime: '18:45', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        { id: 3004, clientId: '3', date: '2026-03-19', startTime: '18:00', endTime: '18:45', duration: 0.75, rate: 150000, guestCount: 0, guestNames: '', amount: 112500 },
-        { id: 3005, clientId: '3', date: '2026-03-24', startTime: '17:30', endTime: '18:30', duration: 1.0, rate: 150000, guestCount: 0, guestNames: '', amount: 150000 },
-        // Ivi - febrero
-        { id: 4001, clientId: '4', date: '2026-02-17', startTime: '18:00', endTime: '20:00', duration: 2.0, rate: 180000, guestCount: 0, guestNames: '', amount: 360000 },
-        // Ivi - marzo
-        { id: 4002, clientId: '4', date: '2026-03-05', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 4003, clientId: '4', date: '2026-03-25', startTime: '15:40', endTime: '16:40', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 4004, clientId: '4', date: '2026-03-26', startTime: '15:40', endTime: '16:40', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        // Ivi - abril
-        { id: 4005, clientId: '4', date: '2026-04-08', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        // Alex - marzo
-        { id: 5001, clientId: '5', date: '2026-03-03', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5002, clientId: '5', date: '2026-03-07', startTime: '10:30', endTime: '11:30', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5003, clientId: '5', date: '2026-03-11', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5004, clientId: '5', date: '2026-03-17', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5005, clientId: '5', date: '2026-03-18', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5006, clientId: '5', date: '2026-03-19', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5007, clientId: '5', date: '2026-03-24', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5008, clientId: '5', date: '2026-03-25', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-        { id: 5009, clientId: '5', date: '2026-03-26', startTime: '15:45', endTime: '16:45', duration: 1.0, rate: 180000, guestCount: 0, guestNames: '', amount: 180000 },
-      ];
-
-      // --- ESTADO Y PERSISTENCIA ---
-      const [clients, setClients] = useState(() => {
-        const saved = localStorage.getItem('sophia_clients_v10');
-        return saved ? JSON.parse(saved) : SEED_CLIENTS;
+      // Mapeo DB (snake_case) <-> JS (camelCase)
+      const entryFromDB = (row) => ({
+        id: row.id, clientId: row.client_id, date: row.date,
+        startTime: row.start_time, endTime: row.end_time,
+        duration: Number(row.duration), rate: row.rate,
+        guestCount: row.guest_count, guestNames: row.guest_names || '',
+        amount: row.amount
+      });
+      const entryToDB = (e) => ({
+        id: e.id, client_id: e.clientId, date: e.date,
+        start_time: e.startTime, end_time: e.endTime,
+        duration: e.duration, rate: e.rate,
+        guest_count: e.guestCount, guest_names: e.guestNames || '',
+        amount: e.amount
+      });
+      const historyFromDB = (row) => ({
+        id: row.id, dateClosed: row.date_closed, timestamp: row.closed_timestamp,
+        clientNames: row.client_names, totalAmount: row.total_amount,
+        entries: row.entries
+      });
+      const historyToDB = (h) => ({
+        id: h.id, date_closed: h.dateClosed, closed_timestamp: h.timestamp,
+        client_names: h.clientNames, total_amount: h.totalAmount,
+        entries: h.entries
       });
 
-      const [entries, setEntries] = useState(() => {
-        const saved = localStorage.getItem('sophia_entries_v10');
-        return saved ? JSON.parse(saved) : SEED_ENTRIES;
-      });
+      // --- ESTADO ---
+      const [clients, setClients] = useState([]);
+      const [entries, setEntries] = useState([]);
+      const [history, setHistory] = useState([]);
+      const [loading, setLoading] = useState(true);
 
-      const [history, setHistory] = useState(() => {
-        const saved = localStorage.getItem('sophia_history_v10');
-        return saved ? JSON.parse(saved) : [];
-      });
-      
-      useEffect(() => { localStorage.setItem('sophia_clients_v10', JSON.stringify(clients)); }, [clients]);
-      useEffect(() => { localStorage.setItem('sophia_entries_v10', JSON.stringify(entries)); }, [entries]);
-      useEffect(() => { localStorage.setItem('sophia_history_v10', JSON.stringify(history)); }, [history]);
+      // Cargar datos de Supabase al iniciar
+      useEffect(() => {
+        const loadData = async () => {
+          const [cRes, eRes, hRes] = await Promise.all([
+            supabase.from('clients').select('*').order('created_at'),
+            supabase.from('entries').select('*').order('date'),
+            supabase.from('history').select('*').order('closed_timestamp', { ascending: false })
+          ]);
+          if (cRes.data) setClients(cRes.data.map(c => ({ id: c.id, name: c.name })));
+          if (eRes.data) setEntries(eRes.data.map(entryFromDB));
+          if (hRes.data) setHistory(hRes.data.map(historyFromDB));
+          setLoading(false);
+        };
+        loadData();
+      }, []);
 
       // --- NAVEGACIÓN Y VISTAS ---
       const [currentView, setCurrentView] = useState('dashboard');
@@ -236,21 +208,22 @@
       const studentSummaryList = Object.values(summaryByStudent).sort((a, b) => b.totalAmount - a.totalAmount);
 
       // --- HANDLERS ---
-      const handleSaveEntry = () => {
+      const handleSaveEntry = async () => {
         const durationInHours = calculateDuration(newEntry.startTime, newEntry.endTime);
         const amount = durationInHours * newEntry.rate * (1 + newEntry.guestCount);
         const entryData = {
-          id: Date.now(), 
-          clientId: newEntry.clientId, 
+          id: editingId || Date.now(),
+          clientId: newEntry.clientId,
           date: newEntry.date,
-          startTime: newEntry.startTime, 
-          endTime: newEntry.endTime, 
+          startTime: newEntry.startTime,
+          endTime: newEntry.endTime,
           duration: durationInHours,
           rate: newEntry.rate,
-          guestCount: newEntry.guestCount, 
-          guestNames: newEntry.guestNames.filter(name => typeof name === 'string' && name.trim() !== '').join(', '), 
+          guestCount: newEntry.guestCount,
+          guestNames: newEntry.guestNames.filter(name => typeof name === 'string' && name.trim() !== '').join(', '),
           amount: amount
         };
+        await supabase.from('entries').upsert(entryToDB(entryData));
         if (editingId) {
           setEntries(entries.map(e => e.id === editingId ? entryData : e));
           setCurrentView('dashboard');
@@ -276,21 +249,24 @@
         setCurrentView('add_entry');
       };
 
-      const handleDeleteEntry = (id) => {
+      const handleDeleteEntry = async (id) => {
+        await supabase.from('entries').delete().eq('id', id);
         setEntries(entries.filter(e => e.id !== id));
       };
 
-      const handleAddClient = () => {
+      const handleAddClient = async () => {
         if (newClient.name.trim()) {
           const newId = Date.now().toString();
-          setClients([...clients, { id: newId, name: newClient.name.trim() }]);
+          const client = { id: newId, name: newClient.name.trim() };
+          await supabase.from('clients').insert(client);
+          setClients([...clients, client]);
           setNewEntry({ ...newEntry, clientId: newId });
           setNewClient({ name: '' });
           setCurrentView('add_entry');
         }
       };
 
-      const handleCloseMonth = () => {
+      const handleCloseMonth = async () => {
         if (selectedCloseClients.length === 0) return;
         const entriesToClose = monthEntries.filter(e => selectedCloseClients.includes(e.clientId));
         const totalClosedAmount = entriesToClose.reduce((sum, e) => sum + e.amount, 0);
@@ -299,10 +275,27 @@
           id: Date.now(), dateClosed: new Date().toLocaleDateString('es-ES'), timestamp: Date.now(),
           clientNames: closedNames, totalAmount: totalClosedAmount, entries: entriesToClose
         };
+        await supabase.from('history').insert(historyToDB(historyItem));
+        const entryIds = entriesToClose.map(e => e.id);
+        await supabase.from('entries').delete().in('id', entryIds);
         setHistory([historyItem, ...history]);
-        setEntries(entries.filter(e => !entriesToClose.some(ec => ec.id === e.id)));
+        setEntries(entries.filter(e => !entryIds.includes(e.id)));
         setCurrentView('dashboard');
         setSelectedCloseClients([]);
+      };
+
+      const importData = async (data) => {
+        // Limpiar Supabase
+        await supabase.from('entries').delete().neq('id', 0);
+        await supabase.from('history').delete().neq('id', 0);
+        await supabase.from('clients').delete().neq('id', '');
+        // Insertar nuevos datos
+        if (data.clients?.length) await supabase.from('clients').insert(data.clients.map(c => ({ id: c.id, name: c.name })));
+        if (data.entries?.length) await supabase.from('entries').insert(data.entries.map(entryToDB));
+        if (data.history?.length) await supabase.from('history').insert(data.history.map(historyToDB));
+        setClients(data.clients);
+        setEntries(data.entries);
+        if (data.history) setHistory(data.history);
       };
 
       const resetNewEntry = () => {
@@ -631,7 +624,7 @@
                 ))}
               </div>
             </div>
-            <button onClick={() => { setHistory(history.filter(h => h.id !== selectedHistoryItem.id)); setCurrentView('history'); }} className="w-full py-4 text-red-600 font-black text-xs uppercase bg-red-50 rounded-2xl flex items-center justify-center">Borrar este cierre</button>
+            <button onClick={async () => { await supabase.from('history').delete().eq('id', selectedHistoryItem.id); setHistory(history.filter(h => h.id !== selectedHistoryItem.id)); setCurrentView('history'); }} className="w-full py-4 text-red-600 font-black text-xs uppercase bg-red-50 rounded-2xl flex items-center justify-center">Borrar este cierre</button>
           </main>
         </div>
       );
@@ -781,8 +774,14 @@
 
       return (
         <div className="font-sans text-slate-900 antialiased max-w-md mx-auto h-[100dvh] bg-slate-50 overflow-hidden relative shadow-2xl flex flex-col">
-          {currentView === 'dashboard' && renderDashboardView()}
-          {currentView === 'add_entry' && renderAddEntryView()}
+          {loading && (
+            <div className="h-full flex flex-col items-center justify-center bg-indigo-600 text-white">
+              <div className="animate-spin w-10 h-10 border-4 border-white/30 border-t-white rounded-full mb-4"></div>
+              <p className="text-lg font-bold">Cargando...</p>
+            </div>
+          )}
+          {!loading && currentView === 'dashboard' && renderDashboardView()}
+          {!loading && currentView === 'add_entry' && renderAddEntryView()}
           {currentView === 'add_client' && (
             <div className="h-full bg-slate-50 flex flex-col p-6 pt-12 animate-fade-in">
               <div className="flex justify-between items-center mb-8 shrink-0">
@@ -838,18 +837,16 @@
                   <p className="text-xs text-slate-500">Carga un archivo de backup para restaurar tus datos. Esto reemplaza todos los datos actuales.</p>
                   <label className="block w-full bg-slate-800 text-white font-bold py-3 rounded-xl text-center cursor-pointer">
                     IMPORTAR ARCHIVO
-                    <input type="file" accept=".json" className="hidden" onChange={(e) => {
+                    <input type="file" accept=".json" className="hidden" onChange={async (e) => {
                       const file = e.target.files[0];
                       if (!file) return;
                       const reader = new FileReader();
-                      reader.onload = (ev) => {
+                      reader.onload = async (ev) => {
                         try {
                           const data = JSON.parse(ev.target.result);
                           if (data.clients && data.entries) {
                             if (confirm('Esto va a reemplazar todos tus datos actuales. Continuar?')) {
-                              setClients(data.clients);
-                              setEntries(data.entries);
-                              if (data.history) setHistory(data.history);
+                              await importData(data);
                               alert('Datos importados correctamente!');
                               setCurrentView('dashboard');
                             }
@@ -869,16 +866,14 @@
                   <h3 className="text-sm font-black text-slate-800 uppercase">Importar pegando texto</h3>
                   <p className="text-xs text-slate-500">Pega el texto de datos copiado del sitio anterior.</p>
                   <textarea id="paste-import" rows="4" placeholder="Pega los datos aca..." className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:outline-none" style={{userSelect: 'text'}}></textarea>
-                  <button onClick={() => {
+                  <button onClick={async () => {
                     try {
                       const raw = document.getElementById('paste-import').value.trim();
                       if (!raw) return alert('Pega los datos primero.');
                       const data = JSON.parse(raw);
                       if (data.clients && data.entries) {
                         if (confirm('Esto va a reemplazar todos tus datos actuales. Continuar?')) {
-                          setClients(data.clients);
-                          setEntries(data.entries);
-                          if (data.history) setHistory(data.history);
+                          await importData(data);
                           alert('Datos importados correctamente!');
                           setCurrentView('dashboard');
                         }
